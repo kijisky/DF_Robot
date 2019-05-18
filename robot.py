@@ -6,6 +6,7 @@ import Adafruit_PCA9685
 
 class Robot:
   def __init__(self):
+    self.stateVersion = 1
     self.pwm = Adafruit_PCA9685.PCA9685()
     self.servo_min = 80 #80  # Min pulse length out of 4096
     self.servo_max = 80 #400  # Max pulse length out of 4096
@@ -20,10 +21,21 @@ class Robot:
 
     self.sf=-50
     self.sb=0
-    self.w=10
+    self.wb=10
+    self.wt=0
     self.s=-20
     self.e=0
 
+  def Reset(self):
+    self.SetLeg('FL', 0,0,0)
+    self.SetLeg('FR', 0,0,0)
+    self.SetLeg('BL', 0,0,0)
+    self.SetLeg('BR', 0,0,0)
+    self.SetWBalance(0)
+    self.SetWTurn(0)
+    self.SetS(0)
+    self.SetE(0)
+    self.apply()
 
   def set_servo_pulse(self,channel, pulse):
     pulse_length = 1000000    # 1,000,000 us per second
@@ -40,69 +52,59 @@ class Robot:
     for i in range(0,16):
       self.pwm.set_pwm(i, 0, vec[i])
 
-  def calcVector(self, flw, fls, fle, frw, frs, fre, blw, bls, ble, brw, brs, bre):
-    ans = [  self.iV[0]  - flw - self.w, self.iV[1]  + fls +self.s +self.sf, self.iV[2]  + fle + self.e, 0,  # LF
-             self.iV[4]  + frw - self.w, self.iV[5]  - frs -self.s -self.sf, self.iV[6]  - fre - self.e, 0,  # RF
-             self.iV[8]  - blw - self.w, self.iV[9]  + bls +self.s +self.sb, self.iV[10] + ble + self.e, 0,  # LB
-             self.iV[12] + brw - self.w, self.iV[13] - brs -self.s -self.sb, self.iV[14] - bre - self.e, 0   # RB
-    ]
-    return ans;
-
-  def printVectors(self):
+  def getRawVector(self):
     diffV = [ -self.dV[0],  self.dV[1],  self.dV[2], 0,
                self.dV[4], -self.dV[5], -self.dV[6], 0,
               -self.dV[8],  self.dV[9],  self.dV[10],0,
                self.dV[12],-self.dV[13],-self.dV[14],0]
-    offsetV = [ 0-self.w, 0+self.s+self.sf, 0+self.e, 0,
-                0-self.w, 0-self.s-self.sf, 0-self.e, 0,
-                0-self.w, 0+self.s+self.sb, 0+self.e, 0,
-                0-self.w, 0-self.s-self.sb, 0-self.e, 0 ]
-    ans =  [y+z for y,z in zip(dV, offsetV)]
-
-    print("dV:")
-    print(ans[0],  ans[1],  ans[2]);
-    print(ans[4],  ans[5],  ans[6]);
-    print(ans[8],  ans[9],  ans[10]);
-    print(ans[12], ans[13], ans[14]);
-
-
-  def applyVector(self):
-    diffV = [ -self.dV[0],  self.dV[1],  self.dV[2], 0,
-               self.dV[4], -self.dV[5], -self.dV[6], 0,
-              -self.dV[8],  self.dV[9],  self.dV[10],0,
-               self.dV[12],-self.dV[13],-self.dV[14],0]
-    offsetV = [ 0-self.w, 0+self.s+self.sf, 0+self.e, 0,
-                0-self.w, 0-self.s-self.sf, 0-self.e, 0,
-                0-self.w, 0+self.s+self.sb, 0+self.e, 0,
-                0-self.w, 0-self.s-self.sb, 0-self.e, 0 ]
+    offsetV = [ 0-self.wb-self.wt, 0+self.s+self.sf, 0+self.e, 0,
+                0-self.wb-self.wt, 0-self.s-self.sf, 0-self.e, 0,
+                0-self.wb+self.wt, 0+self.s+self.sb, 0+self.e, 0,
+                0-self.wb+self.wt, 0-self.s-self.sb, 0-self.e, 0 ]
 
     ans =  [x+y+z for x,y,z in zip(self.iV, diffV, offsetV)]
-    self.setVector(ans)
+    return ans
 
-  def doVector(self, flw, fls, fle, frw, frs, fre, blw, bls, ble, brw, brs, bre):
-    v = self.calcVector( flw, fls, fle, frw, frs, fre, blw, bls, ble, brw, brs, bre)
-    self.setVector(v);
+  def printVectors(self):
+    print("wb: ",  self.wb, "wt: ",  self.wt, "s: ", self.s, "e: ", self.e)
+    print("FL:", self.dV[0:3],   " FR: ", self.dV[4:7])
+    print("BL:", self.dV[8:11],  " BR: ", self.dV[12:15])
+    print("raw:", self.getRawVector())
+
+  def getState(self):
+    version = [self.stateVersion]
+    xV = [self.wb, self.wt, self.s, self.e]
+    ans = version + xV + self.dV
+    return ans;
+
+  def loadState(self, pStateArr):
+    version = pStateArr[0]
+    if (version == self.stateVersion):
+      self.wb = pStateArr[1]
+      self.wt = pStateArr[2]
+      self.s = pStateArr[3]
+      self.e = pStateArr[4]
+      self.dV = pStateArr[5:21]
+      self.apply()
 
 
-  def doSit(self):
-    self.doVector(0,0,0, 0,0,0,  0,0,0, 0,0,0);
-    time.sleep(1)
-    self.doVector(-30,100,150, -30,100,150,  30,-50,150, 30,-50,150);
-    time.sleep(1)
-
+  def apply(self):
+    rawVect = self.getRawVector()
+    self.setVector(rawVect)
 
   def Init(self):
-    self.doVector(0,0,0,  0,0,0,  0,0,0, 0,0,0);
+    self.Reset()
+    self.apply()
     time.sleep(1)
 
   def GetLegIndex(self, pLeg):
-    if (pLeg == 'FL'):
+    if (pLeg == 'FL' or pLeg == 'LF'):
       return 0
-    if (pLeg == 'FR'):
+    if (pLeg == 'FR' or pLeg == 'RF'):
       return 4
-    if (pLeg == 'BL'):
+    if (pLeg == 'BL' or pLeg == 'LB'):
       return 8
-    if (pLeg == 'BR'):
+    if (pLeg == 'BR' or pLeg == 'RB'):
       return 12
     return 0
 
@@ -114,73 +116,32 @@ class Robot:
 
   def IncLeg(self, pLeg, w,s,e):
     print("inc", pLeg, w,s,e)
-    indx= GetLegIndex(pLeg)
+    indx= self.GetLegIndex(pLeg)
     self.dV[indx+0]= self.dV[indx+0] + w
     self.dV[indx+1]= self.dV[indx+1] + s
     self.dV[indx+2]= self.dV[indx+2] + e
 
-  def Calibrate(self):
-    global w,s,e
-    x=0
-    selChan=''
-    orig_settings = termios.tcgetattr(sys.stdin)
-    tty.setcbreak(sys.stdin)
-    while x != '\x1b':
-      x=sys.stdin.read(1)[0]
-      if (x=='1'): selChan='FL'
-      if (x=='2'): selChan='FR'
-      if (x=='3'): selChan='BL'
-      if (x=='4'): selChan='BR'
-      if (x=='`'):
-         SetLeg('FL', 0,0,0)
-         SetLeg('FR', 0,0,0)
-         SetLeg('BL', 0,0,0)
-         SetLeg('BR', 0,0,0)
-         w=0
-         s=0
-         e=0
+  def SetWBalance(self, pVal):
+    self.wb = pVal
 
-      if (x=='3'): IncLeg('FL', -10,   0,   0)
-      if (x=='e'): IncLeg('FL', +10,   0,   0)
-      if (x=='2'): IncLeg('FL',   0, -10,   0)
-      if (x=='w'): IncLeg('FL',   0,  10,   0)
-      if (x=='1'): IncLeg('FL',   0,   0, -10)
-      if (x=='q'): IncLeg('FL',   0,   0,  10)
+  def IncWBalance(self, pVal):
+    self.wb += pVal
 
-      if (x=='6'): IncLeg('FR', -10,   0,   0)
-      if (x=='y'): IncLeg('FR', +10,   0,   0)
-      if (x=='7'): IncLeg('FR',   0, -10,   0)
-      if (x=='u'): IncLeg('FR',   0,  10,   0)
-      if (x=='8'): IncLeg('FR',   0,   0, -10)
-      if (x=='i'): IncLeg('FR',   0,   0,  10)
+  def SetWTurn(self, pVal):
+    self.wt = pVal
 
-      if (x=='d'): IncLeg('BL', -10,   0,   0)
-      if (x=='c'): IncLeg('BL', +10,   0,   0)
-      if (x=='s'): IncLeg('BL',   0, -10,   0)
-      if (x=='x'): IncLeg('BL',   0,  10,   0)
-      if (x=='a'): IncLeg('BL',   0,   0, -10)
-      if (x=='z'): IncLeg('BL',   0,   0,  10)
-
-      if (x=='h'): self.IncLeg('BR', -10,   0,   0)
-      if (x=='n'): self.IncLeg('BR', +10,   0,   0)
-      if (x=='j'): self.IncLeg('BR',   0, -10,   0)
-      if (x=='m'): self.IncLeg('BR',   0,  10,   0)
-      if (x=='k'): self.IncLeg('BR',   0,   0, -10)
-      if (x==','): self.IncLeg('BR',   0,   0,  10)
+  def IncWTurn(self, pVal):
+    self.wt += pVal
 
 
-      if (x=='5'): w-=5
-      if (x=='4'): w+=5
+  def SetS(self, pVal):
+    self.s = pVal
 
-      if (x=='t'): s+=10
-      if (x=='g'): s-=10
+  def IncS(self, pVal):
+    self.s += pVal
 
+  def SetE(self, pVal):
+    self.e = pVal
 
-      if (x=='l'): e+=10
-      if (x=='.'): e-=10
-
-      if (x==' '): printVectors()
-      self.applyVector()
-
-      print("key", x)
-    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_settings)
+  def IncE(self, pVal):
+    self.e += pVal
