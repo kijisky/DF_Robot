@@ -33,8 +33,8 @@ class Robot:
     self.SetLeg('BR', 0,0,0)
     self.SetWBalance(0)
     self.SetWTurn(0)
-    self.SetS(0)
-    self.SetE(0)
+    self.SetShoulder(0)
+    self.SetElbow(0)
     self.apply()
 
   def set_servo_pulse(self,channel, pulse):
@@ -134,14 +134,14 @@ class Robot:
     self.wt += pVal
 
 
-  def SetS(self, pVal):
+  def SetShoulder(self, pVal):
     self.s = pVal
 
-  def IncS(self, pVal):
+  def IncShoulder(self, pVal):
     self.s += pVal
 
-  def SetE(self, pVal):
+  def SetElbow(self, pVal):
     self.e = pVal
 
-  def IncE(self, pVal):
+  def IncElbow(self, pVal):
     self.e += pVal

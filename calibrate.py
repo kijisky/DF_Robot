@@ -53,12 +53,12 @@ class RobotCalibrate:
       if (x=='t'): self.robot.IncWTurn(5)
       if (x=='r'): self.robot.IncWTurn(-5)
 
-      if (x=='g'): self.robot.IncS(10)
-      if (x=='b'): self.robot.IncS(-10)
+      if (x=='g'): self.robot.IncShoulder(10)
+      if (x=='b'): self.robot.IncShoulder(-10)
 
 
-      if (x=='f'): self.robot.IncE(10)
-      if (x=='v'): self.robot.IncE(-10)
+      if (x=='f'): self.robot.IncElbow(10)
+      if (x=='v'): self.robot.IncElbow(-10)
 
       if (x==' '): self.robot.printVectors()
 
