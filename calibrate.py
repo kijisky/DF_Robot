@@ -1,9 +1,9 @@
 import tty,termios, fcntl, sys, os
-
 from robot import Robot
 
 class RobotCalibrate:
   def __init__(self, pRobot):
+    self.filename = "states.txt"
     self.robot = pRobot
     self.robot.Init()
 
@@ -62,6 +62,21 @@ class RobotCalibrate:
 
       if (x==' '): self.robot.printVectors()
 
+      if (x=='['): state = self.robot.getState()
+      if (x==']'): self.robot.loadState(state)
+
+      if (x=='{'): self.robot.pushState()
+      if (x=='}'): self.robot.playStates()
+
+      if (x=='|'): self.robot.dumpStates()
+
+
       self.robot.apply()
 
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_settings)
+
+  def SaveStateToFile(self):
+    state = self.robot.getState()
+    f= open(self.filename,"w+")
+    f.write("S:" + state + "\n")
+    f.close()

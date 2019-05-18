@@ -1,29 +1,35 @@
 from __future__ import division
 
 import time
-import tty,termios, fcntl, sys, os
 import Adafruit_PCA9685
 
 class Robot:
   def __init__(self):
     self.stateVersion = 1
     self.pwm = Adafruit_PCA9685.PCA9685()
-    self.servo_min = 80 #80  # Min pulse length out of 4096
-    self.servo_max = 80 #400  # Max pulse length out of 4096
-
     self.pwm.set_pwm_freq(60)
 
-    self.iV = [540-0, 400+0, 140+0, 0,   # LF
-      250+0, 480-0, 610-0, 0,   # RF
-      590-0, 460+0, 200+0, 0,   # LB
-      220+0, 450-0, 640-0, 0 ]  # RB
-    self.dV = [0,0,0,0,  0,0,0,0, 0,0,0,0, 0,0,0,0]
 
+    # states Array
+    self.statesList = []
+    # init state Vector
+    self.iV = [540-0, 320+0, 140+0, 0, # LF
+               250+0, 560-0, 610-0, 0,   # RF
+               560-0, 460+0, 200+0, 0,   # LB
+               260+0, 450-0, 640-0, 0 ]  # RB
+    # diff state Vector
+    self.dV = [0,0,0,0,  0,0,0,0, 0,0,0,0, 0,0,0,0]
+    # shoulders forward offset
     self.sf=-50
+    # shoulders backside offset
     self.sb=0
+    # wings balance
     self.wb=10
+    # winds turn
     self.wt=0
+    # all shoulders offset (forward, backward)
     self.s=-20
+    # all elbows offset
     self.e=0
 
   def Reset(self):
@@ -70,6 +76,7 @@ class Robot:
     print("FL:", self.dV[0:3],   " FR: ", self.dV[4:7])
     print("BL:", self.dV[8:11],  " BR: ", self.dV[12:15])
     print("raw:", self.getRawVector())
+
 
   def getState(self):
     version = [self.stateVersion]
@@ -145,3 +152,23 @@ class Robot:
 
   def IncElbow(self, pVal):
     self.e += pVal
+
+  def pushState(self):
+    curState = self.getState()
+    self.statesList.append(curState)
+
+  def playStates(self):
+    print("play states")
+    self.Reset()
+    time.sleep(1)
+    self.apply()
+    for state in self.statesList:
+      print("next state")
+      self.loadState(state)
+      time.sleep(0.4)
+
+  def dumpStates(self):
+    for state in self.statesList:
+      print("state:", state)
+
+
